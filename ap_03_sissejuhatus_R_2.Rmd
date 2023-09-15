@@ -112,17 +112,18 @@ typeof(df$taimed)
 
 ```{r message = FALSE}
 library(dplyr)
-select(df, arvud)
+select(df, arvud) # anname ette eraldi argumentidena andmestiku ja tunnuse sellest andmestikust
 
 mean(arvud) # anname ette eraldiseisva vektori
-mean(df$arvud) # funktsioon töötab ka, kui anda ette tunnus andmestikust
+mean(df$arvud) # funktsioon töötab ka, kui defineerida ühes argumendis koos andmestik ja tunnus
 ```
 
 Järgnevad käsud seevastu võimalikud poleks, annaksid veateate:
 
 ```{r eval = FALSE}
-select(df$arvud) # antakse ette tunnus andmestikust ehk sisuliselt üks vektor
-mean(df) # antakse ette kogu andmestik, funktsioon ei oska kogu andmestikuga midagi peale hakata
+select(df$arvud) # antakse ette tunnus andmestikust ehk sisuliselt üks vektor - ei tööta
+# select tahab esmalt eraldi argumendina andmestikku ja seejärel eraldi argumendina tunnust sellest andmestikust
+mean(df) # antakse ette kogu andmestik, funktsioon ei oska kogu andmestikuga midagi peale hakata, eeldab vektorit
 ```
 
 Seda, kas mingi andmestiku puhul on tegu *data frame*-iga, saame teada funktsiooni `class` abil:
