@@ -1,0 +1,230 @@
+---
+title: "Kirjeldav statistika"
+author: "Indrek Soidla"
+date: '2023-09-18'
+output: 
+  html_document:
+    theme: spacelab
+    highlight: tango
+    fig_cap: true
+    toc: true
+    toc_float: true
+    toc_depth: 3
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+Tänases praktikumis harjutame eelmistes praktikumides õpitud oskusi. 
+
+Laeme sisse töös vajalikud paketid.
+
+```{r}
+library(tidyverse)
+library(TAM)
+```
+
+## Harjutus 1 {.tabset .tabset-fade .tabset-pills}
+
+### Ülesanne
+
+Uurige eelmises praktikumis kasutatud ESS-i andmestiku Eesti andmete põhjal, kas tervisehinnang võib olla seotud õnnelikkuse ja eluga rahuloluga. Selleks 
+
+- kodeerige tervisehinnang (tunnus health) ümber nii, et arvuliste koodide asemel oleks tunnuses sisulised skaalapunktid; vastav kood on teil ilmselt eelmise praktikumi skriptifailis või kui eile nii kaugele ei jõudnud, siis saate vastava koodijupi eilsest praktikumijuhendist;
+- arvutage õnnelikkuse (tunnus happy) ja eluga rahulolu (tunnus stflife) kaalutud aritmeetilised keskmised tervisehinnangu kategooriates.
+
+Kui osalesite eilses praktikumis, on kõige lihtsam avada seal loodud projekt, kus projektikaustas on juba andmestik ja kui salvestasite oma skriptifaili, siis ka käsud ESS andmestiku R-i laadimiseks. Kui mitte, siis järgi andmete R-i laadimiseks allolevaid juhiseid.
+
+*Antud juhendis olevate näidete ja harjutuste kaasategemiseks tehke R-s uus projekt. Laadige Moodle'st alla praktikumiandmestiku fail, looge oma projektikaustas kaust `data` ja kopeerige andmestiku fail sinna. Allolev `read_spss` käsk töötab, kui projektikaustas on kaust `data` ja selles andmestik `ESS9e03_1.sav` ning käivitate antud käsu RStudios selle projekti aknas. Kui projekti akna kogemata sulete, saate selle taas avada, kui teete topeltklõpsu projekti kaustas oleval .Rproj laiendiga failil.*
+
+```{r}
+library(haven)
+r9 <- read_spss("data/ESS9e03_1.sav")
+```
+
+### Tulemus
+
+```{r echo = FALSE}
+ee9a <- r9 %>% 
+  filter(cntry == "EE")
+
+ee9a <- ee9a %>% 
+  mutate(health2 = recode(as.factor(health), 
+                          "1" = "Very good", 
+                          "2" = "Good", 
+                          "3" = "Fair", 
+                          "4" = "Bad", 
+                          "5" = "Very bad"))
+
+ee9a %>% 
+  drop_na(health2, happy, stflife) %>% 
+  group_by(health2) %>% 
+  summarise(õnnelikkus_keskm = weighted_mean(happy, w = pspwght),
+            elurahulolu_keskm = weighted_mean(stflife, w = pspwght))
+```
+
+### Lahendus
+
+```{r eval = FALSE}
+ee9a <- r9 %>% 
+  filter(cntry == "EE")
+
+ee9a <- ee9a %>% 
+  mutate(health2 = recode(as.factor(health), 
+                          "1" = "Very good", 
+                          "2" = "Good", 
+                          "3" = "Fair", 
+                          "4" = "Bad", 
+                          "5" = "Very bad"))
+
+ee9a %>% 
+  drop_na(health2, happy, stflife) %>% 
+  group_by(health2) %>% 
+  summarise(õnnelikkus_keskm = weighted_mean(happy, w = pspwght),
+            elurahulolu_keskm = weighted_mean(stflife, w = pspwght))
+```
+
+## Harjutus 2 {.tabset .tabset-fade .tabset-pills}
+
+### Ülesanne 
+
+Arvutage ka õnnelikkuse ja eluga rahulolu kaalutud kujuparameetrid. Arvutage need kõigepealt kogu andmestiku peale ja seejärel ka iga tervisehinnangu kategooria kohta. Mida nende põhjal järeldate, mida peaks õnnelikkuse ja eluga rahulolu aritmeetiliste keskmiste tõlgendamise puhul silmas pidama?
+
+### Tulemus
+
+```{r echo = FALSE}
+ee9a %>% 
+  drop_na(health2, happy, stflife) %>% 
+  summarise(õnnelikkus_asümm = weighted_skewness(happy, w = pspwght),
+            õnnelikkus_järsk = weighted_kurtosis(happy, w = pspwght),
+            elurahulolu_asümm = weighted_skewness(stflife, w = pspwght),
+            elurahulolu_järsk = weighted_kurtosis(stflife, w = pspwght))
+
+ee9a %>% 
+  #drop_na(health2, happy, stflife) %>% 
+  group_by(health2) %>% 
+  summarise(õnnelikkus_asümm = weighted_skewness(happy, w = pspwght),
+            õnnelikkus_järsk = weighted_kurtosis(happy, w = pspwght),
+            elurahulolu_asümm = weighted_skewness(stflife, w = pspwght),
+            elurahulolu_järsk = weighted_kurtosis(stflife, w = pspwght))
+```
+
+### Lahendus
+
+```{r eval = FALSE}
+ee9a %>% 
+  drop_na(health2, happy, stflife) %>% 
+  summarise(õnnelikkus_asümm = weighted_skewness(happy, w = pspwght),
+            õnnelikkus_järsk = weighted_kurtosis(happy, w = pspwght),
+            elurahulolu_asümm = weighted_skewness(stflife, w = pspwght),
+            elurahulolu_järsk = weighted_kurtosis(stflife, w = pspwght))
+
+ee9a %>% 
+  drop_na(health2, happy, stflife) %>% 
+  group_by(health2) %>% 
+  summarise(õnnelikkus_asümm = weighted_skewness(happy, w = pspwght),
+            õnnelikkus_järsk = weighted_kurtosis(happy, w = pspwght),
+            elurahulolu_asümm = weighted_skewness(stflife, w = pspwght),
+            elurahulolu_järsk = weighted_kurtosis(stflife, w = pspwght))
+```
+
+
+## Harjutus 3 {.tabset .tabset-fade .tabset-pills}
+
+### Ülesanne
+
+Kodeerige vanus (tunnus agea) ümber viide vanusegruppi: 
+
+- 15-30
+- 31-45
+- 46-55
+- 56-70
+- 71+
+
+Uurige, kas suhtumine sellesse, kuidas sisserändajad mõjutavad kultuurielu (tunnus imueclt), on seotud vanusegrupiga. Uurige ka, kas hinnangute hajuvus erineb vanusegrupiti. Arvutage selleks tunnuse imueclt aritmeetilised keskmised ja standardhälbed vanusegrupiti. Mida sisulist saate siit järeldada?
+
+Hilisem täpsustus: nagu eelmistes ülesannetes, võtke ka siin aluseks ainult **Eesti andmed** ning arvutage **kaalutud** aritmeetilised keskmised ja standardhälbed. Sellisel juhul peaksite saama ka täpselt sama tulemuse, mis kõrvaloleval tulemuste paanil.
+
+### Tulemus
+
+```{r echo = FALSE}
+ee9a <- ee9a %>% 
+  mutate(vanus = case_when(agea <= 30 ~ "15-30",
+                           agea <= 45 ~ "31-45",
+                           agea <= 55 ~ "46-55",
+                           agea <= 70 ~ "56-70",
+                           agea > 70 ~ "71+"))
+
+ee9a %>% 
+  group_by(vanus) %>% 
+  summarise(immi_keskm = weighted_mean(imueclt, w = pspwght),
+            immi_sd = weighted_sd(imueclt, w = pspwght))
+```
+
+## Harjutus 4 {.tabset .tabset-fade .tabset-pills}
+
+### Ülesanne
+
+Proovige esimeses R-i sissejuhatavas praktikumis tehtud jooniste põhjal uurida ka visuaalselt, milline on tunnuse `imueclt` jaotus ja hajuvus vanusegrupiti. Funktsioonid, mida saaksite siin ggplotiga koos proovida, on näiteks `geom_count`, `geom_boxplot` ja `geom_density`. 
+
+See ülesanne on lihtsalt lisaks, sissejuhatuseks andmete visualiseerimisse, millega tegeleme hiljem. Ei ole mõeldud, et peaksite ülesande iseseisvalt lahendama, kõrvaloleval paanil antud lahendused on pigem õppeotstarbel uurimiseks ja abiks eelmise ülesande lahenduse tõlgendamise juurde.
+
+### Tulemus ja lahendus
+
+```{r}
+ggplot(ee9a, aes(x = vanus, y = imueclt, weight = pspwght)) +
+  geom_count() +
+  labs(title = "Joonis 1. Hinnang immigrantide mõjule kultuurielule, jaotus vanusegrupiti",
+       subtitle = "Mulldiagramm",
+       x = "Vanusegrupp",
+       y = "Hinnang immigrantide mõjule kultuurielule",
+       size = "Indiviidide arv")
+```
+
+
+```{r}
+ggplot(ee9a, aes(x = vanus, y = imueclt)) +
+  geom_boxplot() +
+  labs(title = "Joonis 2. Hinnang immigrantide mõjule kultuurielule, jaotus vanusegrupiti",
+       subtitle = "Karpdiagramm",
+       x = "Vanusegrupp",
+       y = "Hinnang immigrantide mõjule kultuurielule")
+```
+
+
+```{r}
+ggplot(ee9a, aes(x = imueclt, colour = vanus)) +
+  geom_density() +
+  labs(title = "Joonis 3. Hinnang immigrantide mõjule kultuurielule, jaotus vanusegrupiti",
+       subtitle = "Tihedusjaotused",
+       x = "Hinnang immigrantide mõjule kultuurielule",
+       y = "Tihedus",
+       colour = "Vanusegrupp")
+```
+
+Tihedusjaotused on paremini loetavad, kui esitada nad eraldi:
+
+```{r}
+ggplot(ee9a, aes(x = imueclt)) +
+  geom_density() +
+  facet_wrap(~ vanus) +
+  labs(title = "Joonis 4. Hinnang immigrantide mõjule kultuurielule, jaotus vanusegrupiti",
+       subtitle = "Tihedusjaotused",
+       x = "Hinnang immigrantide mõjule kultuurielule",
+       y = "Tihedus")
+```
+
+Lisan siia ka tulpdiagrammid, millel y-teljel on protsendid (mitte indiviidide arvud).
+
+```{r}
+ggplot(ee9a, aes(x = imueclt, y = after_stat(prop))) +
+  geom_bar() +
+  facet_wrap(~ vanus) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(title = "Joonis 5. Hinnang immigrantide mõjule kultuurielule, jaotus vanusegrupiti",
+       subtitle = "Tulpdiagrammid",
+       x = "Hinnang immigrantide mõjule kultuurielule",
+       y = "Osakaal")
+```
+

@@ -1,0 +1,541 @@
+---
+title: "Kirjeldav statistika 2"
+author: "Indrek Soidla"
+date: '2023-09-18'
+output: 
+  html_document:
+    theme: spacelab
+    highlight: tango
+    fig_cap: true
+    toc: true
+    toc_float: true
+    toc_depth: 3
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Laeme sisse tööks vajalikud paketid.
+
+```{r message = FALSE, warning = FALSE}
+library(tidyverse)
+library(summarytools)
+library(modeest)
+library(lsr)
+library(psych)
+library(ggplot2)
+library(haven)
+library(TAM)
+library(matrixStats)
+```
+
+
+# Jaotusparameetrid
+
+Eelmisel korral uurisime põhiliselt, kuidas saada ülevaade uuritavatest tunnustest sagedusjaotuste ja risttabelite ehk tunnuste ühisjaotuste abil. Neid on mõttekas kasutada eelkõige kategoriaalsete tunnuste ehk nominaal- ja järjestustunnuste puhul (kui järjestustunnuses pole liiga palju kategooriaid), sest arvuliste tunnuste puhul oleks erinevaid väärtusi ja nende kohta arvutatavaid sagedusi lihtsalt liiga palju, et ülevaatlikku pilti tunnusest saada. Arvuliste tunnuste puhul saame esmase ülevaate tunnuse jaotusest kokkuvõtlike näitajate abil, mida nimetatakse ka jaotusparameetriteks. Mõnda neist oleme põgusalt ka mingites näidetes juba kasutanud, nt aritmeetilist keskmist, miinimumi ja maksimumi. Vaatame seekord erinevaid selliseid näitajaid lähemalt, mida nad endast kujutavad, millistel puhkudel neid on mõttekas kasutada ja kuidas neid tõlgendada.
+
+Võtame jaotusparameetrite näidete aluseks andmestiku, kus on andmed aastatel 1999-2018 USA föderaalteenistujatele tehtud kingituste kohta, andmed on seal umbes 8000 kingituse kohta. Huvitav on see, et seaduse järgi ei tohiks selliseid kingitusi üldse vastu võtta, aga leidub erandeid, eriti välisriikide esindajate visiitidega seoses, kui kingituse tagasilükkamine võib tekitada solvumist või piinlikkust. Taolised erandid tuleb registris alati fikseerida (mis selliste kingitustega võib juhtuda, kirjeldatakse Eesti kontekstis humoorikalt [siin](http://kontoris.blogspot.com/2019/01/kuidas-kaitutakse-eetiliselt.html)). 
+
+Laeme andmed sisse. Andmed on csv-formaadis, antud juhul on failis üksikväärtused eraldatud komadega, seetõttu kasutame andmete sisselaadimiseks funktsiooni `read.csv` (mitte `read.csv2`). Kas csv-failis on väärtused eraldatud komadega või semikoolonitega, on kõige lihtsam teada saada, avades faili lihtsas tekstiredaktoris nagu Notepad või Notepad++ (kui fail just ülemäära suur ei ole, nt kümnetes megabaitides). Lühikese ülevaate andmestikus olevatest andmetest (tunnuste tüübid ja esimestel ridadel olevad väärtused) saate funktsiooniga `str`.
+
+```{r}
+gifts <- read.csv("data/gifts.csv")
+str(gifts)
+```
+
+## Keskväärtust kirjeldavad näitajad
+
+Soovime näiteks teada, kas erinevate riikide esindajad on teinud teistest kallimaid/odavamaid kingitusi. Erinevaid riike on palju, seetõttu võtame lihtsama näite jaoks tunnuse, kus on vähem kategooriaid, ehk uurime, kas eri maailmajagudest pärit külalised priiskavad kingitustega rohkem kui teised. Kõigi umbes 8000 kingituse väärtuste võrdlemine on keeruline, seega on mõttekas arvutada mingi kokkuvõtlik näitaja, nt mingi näitaja, mis näitaks kingituse keskmist või tüüpilist väärtust maailmajaos, nt keskmine. 
+
+### Aritmeetiline keskmine
+
+Kui räägitakse tunnuse või mingite väärtuste keskmisest, siis enamasti mõeldakse selle all aritmeetilist keskmist: väärtuste summat jagatud väärtuste arvuga. Arvutame aritmeetilised keskmised regiooniti, kasutades selleks paketi `dplyr` võimalusi ja funktsiooni `mean`. Lisame ka kingituste arvu igas regioonis (indiviidide ehk ridade arv) funktsiooniga `n`.
+
+```{r}
+gifts %>% 
+  group_by(region) %>% 
+  summarise(keskmine = mean(value_usd, na.rm = TRUE), 
+            arv = n()) %>% 
+  arrange(desc(keskmine))
+```
+
+Teiste seas esitatakse kingituste keskmine rahaline väärtus ja arv ka selliste kingituste kohta, mille puhul riiki (selle põhjal on tuletatud regioon) polnud märgitud, nende puhul võis kinkija näol olla tegu nt rahvusvahelise organisatsiooni esindajaga või peeti vajalikuks kinkija isik salastada või ei esindanud kinkija otseselt oma riiki vms. Arvutatud näitajate põhjal võiks järeldada, et kaugelt kõige kallimaid kingitusi on toonud Aasia riikide esindajad, Euroopa riikide esindajad on olnud kingituste rahalise väärtuse poolest keskmiselt tagasihoidlikumad, aga mitte kõige tagasihoidlikumad.
+
+Tihti tõlgendatakse aritmeetilist keskmist kui arvväärtuste kogumi keskmist või tüüpilist väärtust. Samas on hea meeles pidada, et täpselt aritmeetilise keskmise väärtust ei pruugi kogumis üldse esinedagi, ka ei pruugi aritmeetiline keskmine näidata tüüpilist väärtust, seda juhul, kui tunnuse jaotus pole sümmeetriline ja/või esineb erindeid ehk teistest tugevalt eristuvaid väärtuseid. Skaala kummagi otsa erandlikumaid väärtuseid näeme nt funktsioonidega `min` ja `max`.
+
+```{r}
+gifts %>% 
+  group_by(region) %>% 
+  summarise(keskmine = mean(value_usd, na.rm = TRUE), 
+            min = min(value_usd, na.rm = TRUE), 
+            max = max(value_usd, na.rm = TRUE), 
+            arv = n()) %>% 
+  arrange(desc(keskmine))
+```
+
+Näeme, et keskmised on kõigi regioonide puhul mitte miinimumi ja maksimumi vahelise skaala keskel, vaid väga palju lähemal miinimumile. See näitab, et väga kalleid kingitusi on ilmselt vähe või esineb üksikuid väga kalleid kingitusi. Sellised ekstreemsed väärtused või jaotuse tugev asümmeetrilisus tõstavad aritmeetilise keskmise väärtust, mistõttu ei näita antud juhul aritmeetilised keskmised kuigi hästi n-ö tüüpilise kingituse rahalist väärtust. Seetõttu ei pruugi ka aritmeetiline keskmine olla tunnuse jaotuse (või keskmise väärtuse või tüüpilise väärtuse) kirjeldamiseks kõige adekvaatsem lahendus, sel juhul võib tunnuse jaotusest parema pildi anda mediaan. 
+
+### Mediaan
+
+Lihtsalt öeldes saame mediaani, kui asetame kõik tunnuse väärtused suuruse järjekorras ritta ehk tekitame variatsioonirea ja leiame selle variatsioonirea keskmise elemendi väärtuse. Seega sisulises mõttes näitab mediaan n-ö keskmist indiviidi paremini kui aritmeetiline keskmine, kuigi praktikas kiputakse ekslikult nii tõlgendama hoopis aritmeetilist keskmist.
+
+```{r}
+gifts %>% 
+  group_by(region) %>% 
+  summarise(keskmine = mean(value_usd, na.rm = TRUE), 
+            mediaan = median(value_usd, na.rm = TRUE), 
+            min = min(value_usd, na.rm = TRUE), 
+            max = max(value_usd, na.rm = TRUE), 
+            arv = n()) %>% 
+  arrange(desc(keskmine))
+```
+
+Tõepoolest, kingituste mediaanväärtused on aritmeetilistest keskmistest märkimisväärselt väiksemad. Kui tunnuse mediaan on aritmeetilisest keskmisest märkimisväärselt erinev, vihjab see, et tunnuse jaotus ei ole sümmeetriline või esineb erindeid, mistõttu olekski tunnuse jaotuse kirjeldamiseks sobivam mediaan. Vale pole ka aritmeetiline keskmine, ainult et nagu näha eelnevast näitest, tema tõlgendamisel võib teha eksijäreldusi. Kui mediaan ja aritmeetiline keskmine langevad kokku, pole vahet, kumba kasutada.
+
+Olgu siinkohal ka välja toodud, et kõiki käsus `summarise` olevaid jaotusparameetrite funktsioone saab kasutada ka kogu tunnuse kohta jaotusparameetrite arvutamiseks (mitte ainult grupiti):
+
+```{r}
+mean(gifts$value_usd, na.rm = TRUE)
+median(gifts$value_usd, na.rm = TRUE)
+```
+
+### Mood
+
+Vahel kasutatakse jaotuse kirjeldamiseks ka moodi, mis on jaotuses kõige enam esinev väärtus. Moodi arvutamiseks pole R-i põhipaketis omaette funktsiooni (funktsioon `mode` on, aga näitab hoopis midagi muud), moodi arvutamiseks peame kasutama funktsiooni `mlv` paketist `modeest`.
+
+```{r}
+gifts %>% 
+  group_by(region) %>% 
+  summarise(keskmine = mean(value_usd, na.rm = TRUE), 
+            mediaan = median(value_usd, na.rm = TRUE), 
+            mood = mfv(value_usd, na_rm = TRUE), # miskipärast on funktsiooni mfv loojad otsustanud nimetada teise argumendi `na_rm`, mitte `na.rm`
+            min = min(value_usd, na.rm = TRUE), 
+            max = max(value_usd, na.rm = TRUE), 
+            arv = n()) %>% 
+  arrange(desc(keskmine))
+```
+
+Mood ei ole tunnuse jaotuse kirjeldamisel niivõrd kasulik kui mediaan või aritmeetiline keskmine, sest ei ütle midagi selle kohta, kui palju seda kõige rohkem esinevat väärtust esineb (nt pideva tunnuse puhul, kus on murdarvud, võib tuhatkonnast väärtusest olla kõige enam esineva väärtusega indiviide pelgalt mõni üksik). Ka võib mõnda teist väärtust esineda pea sama palju kui moodi. Rohkem kasu võib moodist (mitte moest) olla järjestustunnuse, kus on vähe erinevaid väärtuseid, kirjeldamisel.
+
+
+## Hajuvust kirjeldavad näitajad
+
+### Dispersioon ja standardhälve
+
+Eelnevad jaotusparameetrid võimaldasid saada kokkuvõtliku näitaja põhjal info tunnuse tüüpiliste väärtuste kohta. Samas ei ütle nad väga palju selle kohta, kui tüüpiline see näitaja tunnuses esinevate väärtuste suhtes on, st kas tunnuse väärtused on koondunud tihedalt selle jaotusparameetri ümber või pigem hajusalt üle terve skaala. Seda, tunnuse hajuvust, kirjeldavad näiteks dispersioon ja standardhälve. Tunnuse dispersioon saadakse, arvutades iga indiviidi väärtuse erinevuse ehk hälbe tunnuse keskmisest, võttes saadud hälbed ruutu ja arvutades nende ruuthälvete keskmise:
+
+$$s^2 = \frac{1}{n}\overset{n}{\underset{j=1}\Sigma}(x_j - m)^2$$
+Antud valemis $m$ on tunnuse keskmine, $x_j$ on $j$-nda indiviidi väärtus tunnuses, $n$ on indiviidide (siin sama, mis tunnuses olevate väärtuste) arv. Kreeka $\Sigma$ tähistab summeerimist, antud juhul ruuthälvete summeerimist.
+
+Dispersiooni väljendatakse tunnuse ruutühikutes, mida on keeruline tõlgendada, nt tunnuse value_usd dispersioon oleks ruutdollarites. Seepärast võidakse praktikas eelistada dispersiooni asemel standardhälvet, mis on ruutjuur dispersioonist:
+
+$$s = \sqrt{\frac{1}{n}\overset{n}{\underset{j=1}\Sigma}(x_j - m)^2}$$
+
+Standardhälvet ja dispersiooni tõlgendatakse vahel kui indiviidide keskmist erinevust tunnuse keskmisest ehk kui keskmist hälvet tunnuse keskmisest, kuigi päris täpne selline määratlus pole. Õige oleks öelda, et dispersioon on keskmine ruuthälve tunnuse keskmisest ehk ruuthälvete aritmeetiline keskmine, standardhälve on seega ruutjuur ruuthälvete aritmeetilisest keskmisest. Intuitiivselt on seda mõnevõrra keeruline haarata, lihtsam on mõista keskmist absoluuthälvet *(average absolute deviation*, mis ongi keskmine hälve keskmisest:
+
+$$d = \frac{1}{n}\overset{n}{\underset{j=1}\Sigma}|x_j - m|$$
+Võrreldes keskmise absoluuthälbega on standardhälve ja eriti dispersioon rohkem mõjutatud erinditest ehk keskmisest eriti palju hälbivatest väärtustest (sest hälbed võetakse ruutu).
+
+Kui keskmist absoluuthälvet on intuitiivselt lihtsam mõista kui nt standardhälvet, siis miks üldse kasutatakse standardhälvet (ja keskmist absoluuthälvet kasutatakse nii harva, et ma ei pannud seda isegi käesoleva alapeatüki pealkirja)? Sest standardhälve on oluline parameeter erinevate tüüpjaotuste ehk teoreetiliste jaotuste kirjeldamisel ja järeldava analüüsi puhul (st kui soovime valimi põhjal teha järeldusi populatsiooni kohta).
+
+Arvutame kõik kolm hajuvust kirjeldavat jaotusparameetrit.
+
+```{r}
+gifts %>% 
+  group_by(region) %>% 
+  summarise(keskmine = mean(value_usd, na.rm = TRUE), 
+            disp = var(value_usd, na.rm = TRUE),
+            std = sd(value_usd, na.rm = TRUE),
+            aad = aad(value_usd, na.rm = TRUE),
+            mediaan = median(value_usd, na.rm = TRUE), 
+            mood = mfv(value_usd, na_rm = TRUE), # miskipärast on funktsiooni mfv loojad otsustanud nimetada teise argumendi `na_rm`, mitte `na.rm`
+            min = min(value_usd, na.rm = TRUE), 
+            max = max(value_usd, na.rm = TRUE), 
+            arv = n()) %>% 
+  arrange(desc(keskmine))
+```
+
+Tabelist on kohe näha, et dispersiooni näitajad on palju suuremad, nii suured, et neid on keeruline isegi täpselt välja lugeda (ruutdollarid, eksole). (Juhendis ehk html-failis raskendab lugemist veel see, et viie- ja rohkemakohalised arvud esitatakse kümne astmetega, nt $8.10e8$ tähendab $8.1 * 10^8$ ehk 810 miljonit.) Sel põhjusel praktikas ka dispersioone eriti ei kasutata, samas on siiski kvantitatiivsete meetodite alaste tekstide lugemisel kasulik teada, mida dispersioon endast kujutab. Standardhälbed ja keskmised absoluuthälbed on palju lähemal üksteisele, kuigi standardhälbed on keskmisestest absoluuthälvetest kaks kuni üsna mitu korda suuremad. Millest sellised erinevused kahes näitajas erinevate regioonide korral? Sest standardhälve on erindite suhtes tundlikum, seega ilmselt näiteks Aasia riikide esindajate kingituste hulgas leidub kinke, mis on eriti kõrge rahalise väärtusega. Euroopast tulnud kinkide puhul saame keskmise absoluuthälbe põhjal öelda, et kui kingituste väärtuste aritmeetiline keskmine on 1294 dollarit, siis keskmiselt erinevad kingitused sellest keskmisest 1207 dollari võrra.
+
+Kuigi keskmist absoluutsethälvet võib olla lihtsam intuitiivselt mõista kui standardhälvet, pole nende näitajate konkreetsete arvväärtuste sisuline tõlgendamine lihtne ei ühe ega teise puhul. Pigem ongi nende tõlgendamine mõttekas suhtelises plaanis: Aasia kingituste kallidus varieerub rohkem kui Euroopa kingituste väärtus, variatiivsus Euroopa kingituste rahalises väärtuses on omakorda suurem kui nt Okeaaniast või Põhja- ja Lõuna-Ameerikast tulnud kingituste puhul.
+
+### Absoluutne mediaanhälve
+
+Kui erinditega tunnuse keskväärtuse kirjeldamisel oli võimalik aritmeetilise asemel kasutada erindite suhtes ükskõikset mediaani, siis peaks midagi taolist olema võimalik ka hajuvuse kirjeldamisel? Just nii, selleks on absoluutne mediaanhälve *(median absolute deviation)*, mis arvutatakse sarnaselt keskmisele absoluuthälbele, ainult et keskmiste asemel on mediaanid. Seega absoluutse mediaanhälbe puhul arvutatakse iga individuaalse väärtuse erinevus ehk hälve tunnuse mediaanist, ja saadud hälvete absoluutväärtustest võetakse mediaan.  
+
+```{r}
+gifts %>% 
+  group_by(region) %>% 
+  summarise(keskmine = mean(value_usd, na.rm = TRUE), 
+            disp = var(value_usd, na.rm = TRUE),
+            std = sd(value_usd, na.rm = TRUE),
+            aad = aad(value_usd, na.rm = TRUE),
+            mediaan = median(value_usd, na.rm = TRUE), 
+            mad = mad(value_usd, constant = 1, na.rm = TRUE),
+            mood = mfv(value_usd, na_rm = TRUE), # miskipärast on funktsiooni mfv loojad otsustanud nimetada teise argumendi `na_rm`, mitte `na.rm`
+            min = min(value_usd, na.rm = TRUE), 
+            max = max(value_usd, na.rm = TRUE), 
+            arv = n()) %>% 
+  arrange(desc(keskmine))
+```
+
+Seega saab öelda, et näiteks Euroopast tulnud kingituse tüüpiline rahaline väärtus on 550 dollarit; samas kõiki kingitusi see väärtus täpselt ei kirjelda, aga saab öelda, et tüüpiline erinevus sellest mediaanväärtusest oli 250 dollarit. Sellise tõlgenduse tagab R-s funktsiooni `mad` puhul argumendi `constant` väärtus 1; kui seda ei oleks defineeritud, korrutataks vaikeseadena MAD-i väärtused läbi 1,48-ga, mis tagab MAD-i parema võrreldavuse standardhälbega. Küll aga poleks sellisel juhul MAD nii lihtsalt tõlgendatav nagu antud näites.
+
+### Kvantiilid ja kvartiilid
+
+Eelnevate hajuvusparameetritega saame küll hinnata tunnuse hajuvust, kuid me ei saa siiski teada, millisesse vahemikku jäävad nt 20% või 50% tüüpilisemate indiviidide väärtused. Lisaks tunnuse jaotusest parema ülevaate saamisele võib see ka sisuliselt oluline info olla. Selle jaoks saab eelnevalt mainitud variatsioonirea alusel arvutada kvantiilid ehk jagada variatsioonirea (st indiviidide väärtused reastatuna väikseimast suurimani) teatud arvuks võrdseteks osadeks ja leida osade piire kirjeldavad tunnuse väärtused. Näiteks kui reastame meie andmestikus kingituste väärtused väikseimast suurimani ja jaotame saadud variatsioonirea viieks osaks, saame teada, millised on 20%, 40%, 60% ja 80% piiril olevate kingituste väärtused. Teisisõnu saame siis teada kvintiilide väärtused (ladina keelest *quintus* - viis), mis ütlevad meile, millisesse vahemikku jäävad nt keskmise 20% või 60% kingituste väärtused. Samamoodi saame tunnuse `value_usd` variatsioonirea jagada nelja ossa ja leida 25%, 50% ja 75% piiril olevate kingituste rahalised väärtused ehk tunnuse `value_usd` kvartiilid (ld k *quartus* - neli). 25%-kvantiili nimetatakse ka alumiseks kvartiiliks ja 75%-kvantiili ülemiseks kvartiiliks. Nende kvartiilide vahet nimetatakse kvartiilhaardeks *(interquartile range, IQR)*, tegu on arvuga, mis näitab selle lõigu pikkust, kuhu jääb keskmine 1/2 kogumist. 50%-kvantiil on sama, mis mediaan. 
+
+Samal põhimõttel saab arvutada näiteks 10%-, 20%-, 30%- jne kvantiilid ehk detsiilid (variatsioonirida jaotatakse 10 osaks), mida kasutatakse tihti näiteks sissetuleku jaotuse kirjeldamiseks.
+
+Lisame olemasolevasse jaotusparameetrite tabelisse kvartiilid. Kuna mediaan juba tabelis on, siis lisame ainult alumise ja ülemise kvartiili. Kuna tabel on tänu andmete grupeerimisele *tibble*-formaadis, esitataks html-failis vaikeseadena ainult need veerud, mis lehe laiusesse ära mahuvad; lisame koodi lõppu ka käsu `print(width = Inf)`, millega seadistame tabeli nii, et kuvataks kõik veerud.
+
+```{r}
+gifts %>% 
+  group_by(region) %>% 
+  summarise(keskmine = mean(value_usd, na.rm = TRUE), 
+            disp = var(value_usd, na.rm = TRUE),
+            std = sd(value_usd, na.rm = TRUE),
+            aad = aad(value_usd, na.rm = TRUE),
+            alum_kvart = quantile(value_usd, probs = 0.25, na.rm = TRUE),
+            mediaan = median(value_usd, na.rm = TRUE), 
+            ylem_kvart = quantile(value_usd, probs = 0.75, na.rm = TRUE),
+            iqr = IQR(value_usd, na.rm = TRUE),
+            mad = mad(value_usd, constant = 1, na.rm = TRUE),
+            mood = mfv(value_usd, na_rm = TRUE), # miskipärast on funktsiooni mfv loojad otsustanud nimetada teise argumendi `na_rm`, mitte `na.rm`
+            min = min(value_usd, na.rm = TRUE), 
+            max = max(value_usd, na.rm = TRUE), 
+            arv = n()) %>% 
+  arrange(desc(keskmine)) %>% 
+  print(width = Inf)
+```
+
+Näeme, et kui absoluutne mediaanhälve kirjeldab tüüpilist erinevust mediaanist, mille puhul pole teada, kui täpselt see näitaja kirjeldab hajuvust ühel ja teisel pool mediaani, siis kvartiilide põhjal on näha, et ülemine kvartiil on kõigis regioonides mediaanist kaugemal kui alumine. See näitab jällegi kingituste rahaliste väärtuste asümmeetrilist jaotumist.
+
+## Kujuparameetrid
+
+Eelnevad jaotusparameetrid andsid mingi arusaama ka tunnuse jaotuse kujust, nt kuivõrd sümmeetriline või asümmeetriline see võib olla. Vaatame lisaks veel kahte näitajat, mis kirjeldavad otseselt jaotuse kuju.
+
+### Asümmeetriakordaja
+
+Asümmeetriakordaja arvutatakse nii, et sümmeetrilise jaotuse puhul (keskmisest ühele ja teisele poole on jaotuse kuju sümmeetriline) on tunnuse järskuskordaja 0. Mida asümmeetrilisem on jaotus, seda kaugemal nullist on asümmeetriakordaja väärtus. Näiteks meie andmestikus on kingituste rahalise väärtuse tunnuse jaotus väga asümmeetriline - kvartiilide põhjal saab öelda, et umbes pooled kingitustest on väärtusega ligikaudu 500 dollarit või vähem, samas kui umbes neljandik kingitustest on väärtusega üle 1000 dollari, osad, neist on kaugelt üle selle väärtuse. Sellisel juhul öeldakse, et tunnuse jaotus on positiivselt asümmeetriline ehk tunnuse jaotus on välja venitatud suuremate väärtuste poole. Kui tunnuse jaotus on välja venitatud väiksemate väärtuste poole, on tegu negatiivse asümmeetriaga ja asümmeetriakordaja väärtus on negatiivne (mida tugevam asümmeetria, seda kaugemal nullist see negatiivne väärtus on). Vaadates asümmeetriakordaja valemit, saab ka selgeks, miks see nii on - sarnaselt standardhälbe valemile arvutatakse ka siin hälbed keskmisest, kuid need võetakse kuupi, mille tõttu kajastub ka asümmeetriakordaja väärtuses hälvete domineeriv suund:
+
+$$a = \frac{1}{n}\overset{n}{\underset{j=1}\Sigma}\frac{(x_j - m)^3}{s^3}$$
+Arvutame regiooniti asümmeetriakordajad (funktsiooniga `skew` paketist `psych`) ja vaatame, milline paistab tunnuse jaotus joonisel Euroopa näitel.
+
+```{r}
+gifts %>% 
+  group_by(region) %>% 
+  summarise(keskmine = mean(value_usd, na.rm = TRUE), 
+            disp = var(value_usd, na.rm = TRUE),
+            std = sd(value_usd, na.rm = TRUE),
+            aad = aad(value_usd, na.rm = TRUE),
+            alum_kvart = quantile(value_usd, probs = 0.25, na.rm = TRUE),
+            mediaan = median(value_usd, na.rm = TRUE), 
+            ylem_kvart = quantile(value_usd, probs = 0.75, na.rm = TRUE),
+            iqr = IQR(value_usd, na.rm = TRUE),
+            mad = mad(value_usd, constant = 1, na.rm = TRUE),
+            mood = mfv(value_usd, na_rm = TRUE), # miskipärast on funktsiooni mfv loojad otsustanud nimetada teise argumendi `na_rm`, mitte `na.rm`
+            min = min(value_usd, na.rm = TRUE), 
+            max = max(value_usd, na.rm = TRUE), 
+            asymm = skew(value_usd),
+            arv = n()) %>% 
+  arrange(desc(keskmine)) %>% 
+  print(width = Inf)
+```
+
+Asümmeetriakordajad on väga kõrged, rusikareeglina võib öelda, et sümmeetrilisest jaotusest saaks rääkida juhul, kui asümmeetriakordaja oleks umbes -0,5 ja 0,5 vahel, mõõduka asümmeetriaga võiks olla tegu, kui asümmeetriakordaja jääb -1 ja 1 vahele. Antud jaotuse tugev asümmeetria paistab silma ka Euroopa andmete jooniselt (histogrammil on kuvatud ainult 25000 dollarist väiksemate väärtuste jaotus, tulba kõrgus näitab kingituste arvu 500-dollarise hinnavahemiku kohta):
+
+```{r}
+gifts %>% 
+  filter(region == "Europe" & value_usd < 25000) %>% 
+  ggplot(aes(x = value_usd)) +
+  geom_histogram(binwidth = 500) +
+  scale_x_continuous("Kingituse väärtus, USD") +
+  scale_y_continuous("Kingituste arv")
+```
+
+### Järskuskordaja
+
+Järskuskordaja väärtus arvutatakse nii, et mida lamedam on tunnuse jaotus (erinevad väärtused tunnuse skaalal on sarnasemate sagedustega, jaotuse n-ö sabad on tüsedamad), seda suurema negatiivse väärtusega on järskuskordaja. Mida teravatipulisem on tunnuse jaotus (jaotusel on terav tipp, jaotuse sabad on üsna õhukesed ja keskmisest kaugeleulatuvad), seda suurema positiivse väärtusega on järskuskordaja. Järskuskordaja väärtus on 0, kui jaotuse järskus langeb kokku normaaljaotusega, mis on üks enimkasutatavaid tüüpjaotusi.
+
+Arvutame järskuskordajad regiooniti funktsiooniga `kurtosi` paketist `psych`.
+
+```{r}
+gifts %>% 
+  group_by(region) %>% 
+  summarise(keskmine = mean(value_usd, na.rm = TRUE), 
+            disp = var(value_usd, na.rm = TRUE),
+            std = sd(value_usd, na.rm = TRUE),
+            aad = aad(value_usd, na.rm = TRUE),
+            alum_kvart = quantile(value_usd, probs = 0.25, na.rm = TRUE),
+            mediaan = median(value_usd, na.rm = TRUE), 
+            ylem_kvart = quantile(value_usd, probs = 0.75, na.rm = TRUE),
+            iqr = IQR(value_usd, na.rm = TRUE),
+            mad = mad(value_usd, constant = 1, na.rm = TRUE),
+            mood = mfv(value_usd, na_rm = TRUE), # miskipärast on funktsiooni mfv loojad otsustanud nimetada teise argumendi `na_rm`, mitte `na.rm`
+            min = min(value_usd, na.rm = TRUE), 
+            max = max(value_usd, na.rm = TRUE), 
+            asymm = skew(value_usd),
+            jarskus = kurtosi(value_usd),
+            arv = n()) %>% 
+  arrange(desc(keskmine)) %>% 
+  print(width = Inf)
+```
+
+Vahemärkus: kõigi eelnevate näidete puhul on enamiku jaotusparameetrite funktsioonide puhul eraldi defineeritud argument `na.rm = TRUE`, mis eemaldab tunnusest `value_usd` andmelüngad, muidu saaksime jaotusparameetrite väärtusteks `NA` (sest andmelünk ehk puuduv väärtus tunnuses ei võimalda jaotusparameetrit arvutada). Saab ka lihtsamini, funktsiooniga `drop_na`; see funktsioon eemaldab analüüsist andmeread, mille puhul on vaadeldavas tunnuses (st tunnusel, mis on lisatud funktsiooni argumendiks) andmelünk.
+
+```{r eval = FALSE}
+gifts %>% 
+  group_by(region) %>% 
+  drop_na(value_usd) %>% 
+  summarise(keskmine = mean(value_usd), 
+            disp = var(value_usd),
+            std = sd(value_usd),
+            aad = aad(value_usd),
+            alum_kvart = quantile(value_usd, probs = 0.25),
+            mediaan = median(value_usd), 
+            ylem_kvart = quantile(value_usd, probs = 0.75),
+            iqr = IQR(value_usd),
+            mad = mad(value_usd, constant = 1),
+            mood = mfv(value_usd), 
+            min = min(value_usd), 
+            max = max(value_usd), 
+            asymm = skew(value_usd),
+            jarskus = kurtosi(value_usd),
+            arv = n()) %>% 
+  arrange(desc(keskmine)) %>% 
+  print(width = Inf)
+```
+
+
+Järskuskordajad on väga kõrged nagu näitas ka eelnev joonis Euroopa puhul.
+
+Kui asümmeetria- ja järskuskordaja väärtused on 0, langeb tunnuse jaotus kokku normaaljaotusega. Miks see on oluline? Normaaljaotus on üks enamlevinud tüüpjaotusi, mis on paljude statistiliste meetodite kasutamise eelduseks. Meetodi eeldus tähendab siinjuures seda, et kui soovime mingeid tunnuseid mingi meetodi abil analüüsida, peavad tunnused vastama teatud nõudmistele, nt tunnuse jaotus peab olema lähedane mingile etteantud jaotusele. Tihti ongi selliseks etalonjaotuseks normaaljaotus. Näiteks selleks, et aritmeetiline keskmine kirjeldaks adekvaatselt tunnuse tüüpilisi väärtusi, oleks hea, et tunnuse jaotus oleks lähedane normaaljaotusele (kindlasti peaks olema vähemalt sümmeetrilise või sellele lähedase jaotusega).
+
+Mida normaaljaotus endast kujutab? Standardiseeritud normaaljaotuse puhul on tegu jaotusega, mille keskmine on 0 ja dispersioon 1. Jaotus on kellukakujuline, vahel nimetatakse seda ka Gaussi jaotuseks:
+
+```{r echo = FALSE}
+n.sample <- rnorm(n = 100000, mean = 0, sd = 1)
+datasim <- data.frame(n.sample)
+
+ggplot(datasim, aes(x = n.sample), binwidth = 2) + 
+  stat_function(fun = dnorm, n = 101, args = list(mean = 0, sd = 1)) + xlab('Väärtus') + 
+  ylab('Tõenäosus') +
+  scale_x_continuous(breaks = c(-4, -3, -2, -1, 0, 1, 2, 3, 4), minor_breaks = NULL)
+```
+
+Normaaljaotusega tunnuse jaotuse puhul kehtib reegel (tasub järgmiseks korraks meelde jätta), et 
+- 90% tunnuse väärtustest on aritmeetilisest keskmisest kuni 1,645 standardhälbe kaugusel (st mõlemale poole tunnuse keskmisest),
+- 95% tunnuse väärtustest on aritmeetilisest keskmisest kuni 1,96 standardhälbe kaugusel ja
+- 99% tunnuse väärtustest on aritmeetilisest keskmisest kuni 2,575 standardhälbe kaugusel.
+
+## Jaotusparameetrid kokkuvõtlikult
+
+Eelnevalt arvutasime jaotusparameetrid eraldi funktsioonide abil, grupiti saime need jaotusparameetrid arvutada `dplyr`'i abil. See võimaldab tellida just need jaotusparameetrid, mida parajasti vaja on. Ka annab funktsioon `summarise` väljundi *data frame*'i kujul, mida on mugav vajadusel edasi analüüsida (nt kasutada jooniste tegemiseks). Jaotusparameetrid on siiski võimalik tellida ka korraga. Seda saab teha nt funktsiooniga `descr` paketist `summarytools`.
+
+```{r}
+descr(gifts$value_usd)
+```
+
+Mitme grupi kohta jaotusparameetrite saamiseks tuleb kasutada funktsiooni `stby` koos funktsiooniga `with`: funktsiooni `with` esimese argumendiga paneme paika andmestiku, teise argumenti läheb funktsioon `stby`, millest täpsustame tunnuse, mille alusel midagi arvutada tahame, kategoriseeriva tunnuse ja funktsiooni, mille abil arvutused teeme.
+
+```{r}
+with(gifts, stby(value_usd, region, descr))
+```
+
+Jaotusparameetrite tabeli saab ka nt funktsiooniga `describe` paketist `psych`. Kui soovime ka kvantiile, tuleb need käsus täpsustada.
+
+```{r}
+describe(gifts$value_usd, quant = c(.25, .75))
+```
+
+Grupiti saab paketis `psych` jaotusparameetrid tellida funktsiooniga describeBy:
+
+```{r}
+describeBy(value_usd ~ region, data = gifts, quant = c(.25, .75))
+```
+
+## Ülesanne 1
+
+Osa kingitusi on tehtud USA presidendi (õieti küll presidentide, sest vaadeldavas ajavahemikus on USA-l olnud mitu presidenti) lastele ("First Family Children" tunnuses `recipient`). Kui palju neile kingitusi on tehtud, milliste riikide esindajad on neile kingitusi toonud? Tehke alustuseks nende riikide jaotus. Enne, kui vaatate, kui suures rahalises vääringus kingitusi presidendi lastele on tehtud, püüdke jaotusparameetrite põhjal hinnata, millises suurusjärgus on neile tehtud kingituste tüüpilised rahalised väärtused, missuguse kujuga võib olla jaotuse kuju, kas võib esineda teistest tugevalt eristuvaid väärtuseid (eriti kalleid või odavaid kingitusi). Milline on lastele tehtud kingituste rahaliste väärtuste hajuvus võrreldes nt esileedile tehtud kingitustega (võtke siin lihtsuse mõttes aluseks väärtus "First Lady" tunnuses `recipient`) - mida järeldaksite selle osas ainult miinimumi ja maksimumi põhjal, mida ka teisi jaotusparameetreid arvesse võttes? Kui vaatate andmestikus otsa lastele tehtud kingituste rahalistele väärtustele, kas need kinnitavad jaotusparameetrite põhjal tehtud järeldusi?
+
+Pärast eelnevatele küsimustele vastamist vaadake ka huvi pärast, millise riigi esindajad on teinud lastele kõige kallemaid kingitusi, millist tüüpi kingitusi on presidendi lastele kõige rohkem tehtud, milline on kõige eriskummalisem kingitus.
+
+Proovige ülesanne teha läbi kõigepealt iseseisvalt eelnevate näidete koodi põhjal. Kui jääte jänni, siis…
+
+<details>
+  <summary>väljundi nägemiseks klikkige siia</summary>
+```{r echo = FALSE}
+gifts %>% 
+  filter(recipient == "First Family Children") %>% 
+  freq(donor_country) %>% 
+  as.data.frame() %>% 
+  arrange(desc(Freq))
+
+gifts %>% 
+  filter(recipient %in% c("First Family Children", "First Lady")) %>%
+  drop_na(value_usd) %>% 
+  group_by(recipient) %>% 
+  summarise(keskmine = mean(value_usd, na.rm = TRUE), 
+            disp = var(value_usd, na.rm = TRUE),
+            std = sd(value_usd, na.rm = TRUE),
+            aad = aad(value_usd, na.rm = TRUE),
+            alum_kvart = quantile(value_usd, probs = 0.25, na.rm = TRUE),
+            mediaan = median(value_usd, na.rm = TRUE), 
+            ylem_kvart = quantile(value_usd, probs = 0.75, na.rm = TRUE),
+            iqr = IQR(value_usd, na.rm = TRUE),
+            mad = mad(value_usd, constant = 1, na.rm = TRUE),
+            mood = mlv(value_usd, method = "mfv", na_rm = TRUE),
+            min = min(value_usd, na.rm = TRUE), 
+            max = max(value_usd, na.rm = TRUE), 
+            asymm = skew(value_usd),
+            jarskus = kurtosi(value_usd),
+            arv = n()) %>% 
+  arrange(desc(keskmine)) %>% 
+  print(width = Inf)
+
+gifts %>% 
+  filter(recipient == "First Family Children") %>% 
+  select(donor_country, value_usd, gift_description) %>% 
+  arrange(desc(value_usd)) %>% 
+  as_tibble() %>% 
+  print(n = Inf)
+```
+</details> 
+
+<details>
+  <summary>koodi nägemiseks klikkige siia</summary>
+```{r eval = FALSE}
+gifts %>% 
+  filter(recipient == "First Family Children") %>% 
+  freq(donor_country) %>% 
+  as.data.frame() %>% 
+  arrange(desc(Freq))
+
+gifts %>% 
+  filter(recipient %in% c("First Family Children", "First Lady")) %>%
+  drop_na(value_usd) %>% 
+  group_by(recipient) %>% 
+  summarise(keskmine = mean(value_usd, na.rm = TRUE), 
+            disp = var(value_usd, na.rm = TRUE),
+            std = sd(value_usd, na.rm = TRUE),
+            aad = aad(value_usd, na.rm = TRUE),
+            alum_kvart = quantile(value_usd, probs = 0.25, na.rm = TRUE),
+            mediaan = median(value_usd, na.rm = TRUE), 
+            ylem_kvart = quantile(value_usd, probs = 0.75, na.rm = TRUE),
+            iqr = IQR(value_usd, na.rm = TRUE),
+            mad = mad(value_usd, constant = 1, na.rm = TRUE),
+            mood = mlv(value_usd, method = "mfv", na_rm = TRUE),
+            min = min(value_usd, na.rm = TRUE), 
+            max = max(value_usd, na.rm = TRUE), 
+            asymm = skew(value_usd),
+            jarskus = kurtosi(value_usd),
+            arv = n()) %>% 
+  arrange(desc(keskmine))
+
+gifts %>% 
+  filter(recipient == "First Family Children") %>% 
+  select(donor_country, value_usd, gift_description) %>% 
+  arrange(desc(value_usd)) %>% 
+  View()
+```
+</details> 
+<br>
+
+## Jaotusparameetrid kaalutud andmetega
+
+Kui analüüsime küsitlusandmeid, on enamasti tarvis andmeid ka kaaluda. Jaotusparameetrid saab arvutada ka kaalutud andmetega, R-s on enamiku jaoks neist funktsioonid olemas. Enamik jaotusparameetrite funktsioonidest, mis võimaldavad kaale arvesse võtta, pärinevad siinkohal paketist `TAM`, välja arvatud `weightedMad`, mis pärineb paketist `matrixStats`.
+
+Arvutame näitena tunnuse `grspnum` ehk tavalise kuu brutosissetuleku kaalutud jaotusparameetrid.
+
+```{r}
+r9 <- read_spss("data/ESS9e03_1.sav")
+ee9 <- r9 %>% 
+  filter(cntry == "EE")
+
+ee9 %>% 
+  drop_na(grspnum) %>% 
+  group_by(region) %>% 
+  summarise(keskmine = weighted_mean(grspnum, w = pspwght), 
+            disp = weighted_var(grspnum, w = pspwght),
+            std = weighted_sd(grspnum, w = pspwght),
+            alum_kvart = weighted_quantile(grspnum, w = pspwght, probs = 0.25),
+            mediaan = weighted_quantile(grspnum, w = pspwght, probs = 0.5),
+            ylem_kvart = weighted_quantile(grspnum, w = pspwght, probs = 0.75),
+            iqr = ylem_kvart - alum_kvart,
+            mad = weightedMad(grspnum, constant = 1),
+            min = min(grspnum), 
+            max = max(grspnum), 
+            asymm = weighted_skewness(grspnum, w = pspwght),
+            jarskus = weighted_kurtosis(grspnum, w = pspwght),
+            arv = sum(pspwght)) %>% 
+  print(width = Inf)
+```
+
+Olen paketti `summarytools` kasutanud paljuski seepärast, et see võimaldab saada ülevaatliku jaotusparameetrite tabeli mitte ainult kaalumata, vaid ka kaalutud andmetele (mitte küll kõiki jaotusparameetreid, aga osad siiski). 
+
+```{r}
+descr(ee9$grspnum, weights = ee9$pspwght)
+```
+
+Panin aga just tähele, et kui `descr` saab hästi hakkama kaalumata andmetega ja ka *kogu* tunnuse jaotusparameetrite arvutamisega kaalutud andmetega, siis kaalutud andmete pealt teise tunnuse kategooriate lõikes (nt regiooniti) arvutab `descr` jaotusparameetrid küll ära, aga tulemused on mõnevõrra erinevad võrreldes teiste sarnaste funktsioonidega. Ei oska öelda, miks täpselt see nii on, igatahes kaalutud andmete põhjal *grupiti* jaotusparameetrite arvutamiseks soovitaksin `descr`'i asemel eelkõige eelnevat `dplyr`'i varianti, kus kõik jaotusparameetrid arvutatakse eraldi funktsioonidega.
+
+## Ülesanne 2
+
+ESS-s küsitakse, kuivõrd vastaja usaldab seitset erinevat institutsiooni. Neist viis küsimust (tunnused `trstprl` kuni `trstprt`) on siseriiklike institutsioonide usaldamise kohta. Koostage nende alusel n-ö indekstunnus, mille väärtuseks saab igal indiviidil tema poolt siseriiklikele institutsioonidele antud usaldushinnangute keskmine (vihje: abi on funktsioonist `mutate`). Arvutage saadud tunnuse jaotusparameetreid (andmeid kaaludes!) nende kohta, kes tajuvad, et neid mingil põhjusel diskrimineeritakse, ja nende kohta, kes diskrimineerimist enda suhtes ei taju (tunnus `dscrgrp`). Kas/kuivõrd nendes kahes grupis keskmine institutsioonide usaldamise tase erineb, kuivõrd varieerub erinevalt?
+
+Nagu eelmise ülesande puhul, proovige ülesanne teha kõigepealt iseseisvalt eelneva koodi põhjal. Kui vajate abi, siis…
+
+<details>
+  <summary>väljundi nägemiseks klikkige siia</summary>
+```{r echo = FALSE}
+ee9 <- ee9 %>% 
+  mutate(trust = (trstprl + trstlgl + trstplc + trstplt + trstprt) / 5)
+
+ee9 %>% 
+  drop_na(trust, dscrgrp) %>% 
+  group_by(dscrgrp) %>% 
+  summarise(keskmine = weighted_mean(trust, w = pspwght), 
+            disp = weighted_var(trust, w = pspwght),
+            std = weighted_sd(trust, w = pspwght),
+            alum_kvart = weighted_quantile(trust, w = pspwght, probs = 0.25),
+            mediaan = weighted_quantile(trust, w = pspwght, probs = 0.5),
+            ylem_kvart = weighted_quantile(trust, w = pspwght, probs = 0.75),
+            iqr = ylem_kvart - alum_kvart,
+            mad = weightedMad(trust, constant = 1),
+            min = min(trust), 
+            max = max(trust), 
+            asymm = weighted_skewness(trust, w = pspwght),
+            jarskus = weighted_kurtosis(trust, w = pspwght),
+            arv = sum(pspwght)) %>% 
+  print(width = Inf)
+```
+</details> 
+
+<details>
+  <summary>koodi nägemiseks klikkige siia</summary>
+```{r eval = FALSE}
+ee9 <- ee9 %>% 
+  mutate(trust = (trstprl + trstlgl + trstplc + trstplt + trstprt) / 5)
+
+ee9 %>% 
+  drop_na(trust, dscrgrp) %>% 
+  group_by(dscrgrp) %>% 
+  summarise(keskmine = weighted_mean(trust, w = pspwght), 
+            disp = weighted_var(trust, w = pspwght),
+            std = weighted_sd(trust, w = pspwght),
+            alum_kvart = weighted_quantile(trust, w = pspwght, probs = 0.25),
+            mediaan = weighted_quantile(trust, w = pspwght, probs = 0.5),
+            ylem_kvart = weighted_quantile(trust, w = pspwght, probs = 0.75),
+            iqr = ylem_kvart - alum_kvart,
+            mad = weightedMad(trust, constant = 1),
+            min = min(trust), 
+            max = max(trust), 
+            asymm = weighted_skewness(trust, w = pspwght),
+            jarskus = weighted_kurtosis(trust, w = pspwght),
+            arv = sum(pspwght)) %>% 
+  print(width = Inf)
+```
+</details> 
+<br>

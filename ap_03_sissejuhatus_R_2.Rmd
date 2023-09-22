@@ -1,7 +1,7 @@
 ---
 title: "Kirjeldav statistika"
 author: "Indrek Soidla"
-date: '2022-09-16'
+date: '2023-09-18'
 output: 
   html_document:
     theme: spacelab
@@ -97,31 +97,32 @@ Samuti saame teha ka tehteid:
 arvud[2] + arvud[3]
 ```
 
-Põhimõtteliselt võib *data frame*-i käsitleda kui ühepikkuste vektorite kogu, ühepikkused vektorid saamegi liita kokku *data frame*-ks.
+Põhimõtteliselt võib *data frame*-i käsitleda kui ühepikkuste vektorite kogu, ühepikkused vektorid saamegi liita kokku *data frame*-ks. Anname andmestikus tunnustele ka teistsugused nimed kui eelnevates näidetes vektoritel, et oleks edaspidistes näidetes selgem, millal teeme tehteid eraldiseisvate vektoritega, millal tunnuste andmestikust.
 
 ```{r}
 taimed <- c("puu", "põõsas", "lill")
 df <- data.frame(arvud, taimed)
+names(df) <- c("numbers", "plants")
 df
 
-typeof(df$arvud)
-typeof(df$taimed)
+typeof(df$numbers)
+typeof(df$plants)
 ```
 
 Üks põhilisi veateate allikaid on see, kui meil jääb kahe silma vahele, millist tüüpi andmehulka funktsioon eeldab. Näiteks, kas funktsioon eeldab, et andmehulk, millega ta peab midagi tegema ja mille talle (enamasti esimese argumendiga) ette anname, on vektor või *data frame*. Osad `dplyr`-i ja muude `tidyverse`-i hulka kuuluvate pakettide funktsioonid eeldavad, et anname *eraldi* argumendiga ette *data frame*-i nime, mõned muud funktsioonid jällegi eeldavad vektorit ehk konkreetset veergu andmestikust. Võrdleme, kuidas käituvad *dplyr*-i funktsioon *select* ja paketi *base* (see pakett laetakse sisse automaatselt R-i käivitamisega) funktsioon *mean*.
 
 ```{r message = FALSE}
 library(dplyr)
-select(df, arvud) # anname ette eraldi argumentidena andmestiku ja tunnuse sellest andmestikust
+select(df, numbers) # anname ette eraldi argumentidena andmestiku ja tunnuse sellest andmestikust
 
 mean(arvud) # anname ette eraldiseisva vektori
-mean(df$arvud) # funktsioon töötab ka, kui defineerida ühes argumendis koos andmestik ja tunnus
+mean(df$numbers) # funktsioon töötab ka, kui defineerida ühes argumendis koos andmestik ja tunnus
 ```
 
 Järgnevad käsud seevastu võimalikud poleks, annaksid veateate:
 
 ```{r eval = FALSE}
-select(df$arvud) # antakse ette tunnus andmestikust ehk sisuliselt üks vektor - ei tööta
+select(df$numbers) # antakse ette tunnus andmestikust ehk sisuliselt üks vektor - ei tööta
 # select tahab esmalt eraldi argumendina andmestikku ja seejärel eraldi argumendina tunnust sellest andmestikust
 mean(df) # antakse ette kogu andmestik, funktsioon ei oska kogu andmestikuga midagi peale hakata, eeldab vektorit
 ```
@@ -173,7 +174,7 @@ Näiteks lisame andmestikku `df` tunnuse `korgus` ja lisame sellele väärtused 
 
 ```{r}
 korgus <- c("kõrge", "madal", "kõige madalam")
-df <- data.frame(arvud, taimed, korgus)
+df <- data.frame(df, korgus)
 ```
 
 Tegu on tekstilise tunnusega:
@@ -205,7 +206,7 @@ Et juba olemasoleva faktori väärtusi järjestada väärtuste sisulise tähendu
 
 ```{r message = FALSE}
 library(forcats)
-df$korgus <- fct_relevel(df$korgus, levels = c("kõrge", "madal", "kõige madalam"))
+df$korgus <- fct_relevel(df$korgus, "kõrge", "madal", "kõige madalam")
 freq(df$korgus)
 ```
 
@@ -216,9 +217,11 @@ Nagu öeldud, andme- ja tunnuste tüüpides on oluline orienteeruda, sest erinev
 
 ## Esmane info andmestiku kohta
 
-Kasutame täna ja mitmetel järgnevatel kordadel Euroopa Sotsiaaluuringu (ESS) andmeid. Tegu on ühe kvaliteetseima rahvusvahelise küsitlusuuringuga, mida viiakse läbi iga kahe aasta tagant enamikus Euroopa riikides ja mille andmed on veebis vabalt kättesaadavad. Andmed on esinduslikud uuringus osalevate riikide elanikkonna suhtes (täpsemalt, vähemalt 15-aastaste alaliste elanike suhtes). Veebist on ESS-i andmed allalaetavad näiteks SPSS-i ehk .sav formaadis, sellises formaadis andmestiku R-i laadimiseks saab kasutada funktsiooni `read_spss` paketist `haven`. Siin kasutatavad andmed on ESS-i 9. küsitluslainest ehk 2018. aastast.
+Vaatame täna lähemalt, kuidas R-s saada ülevaade kategoriaalsete tunnuste jaotustest. Hästi sobivad selleks mingi küsitlusuuringu nagu Euroopa Sotsiaaluuringu (ESS) andmed. Tegu on ühe kvaliteetseima rahvusvahelise küsitlusuuringuga, mida viiakse läbi iga kahe aasta tagant enamikus Euroopa riikides ja mille andmed on veebis vabalt kättesaadavad. Andmed on esinduslikud uuringus osalevate riikide elanikkonna suhtes (täpsemalt, vähemalt 15-aastaste alaliste elanike suhtes). Veebist on ESS-i andmed allalaetavad näiteks SPSS-i ehk .sav formaadis, sellises formaadis andmestiku R-i laadimiseks saab kasutada funktsiooni `read_spss` paketist `haven`. Siin kasutatavad andmed on ESS-i 9. küsitluslainest ehk 2018. aastast.
 
-```{r}
+Antud juhendis olevate näidete ja harjutuste kaasategemiseks tehke R-s uus projekt. Laadige Moodle'st alla praktikumiandmestiku fail, looge oma projektikaustas kaust `data` ja kopeerige andmestiku fail sinna. Allolev `read_spss` käsk töötab, kui projektikaustas on kaust `data` ja selles andmestik `ESS9e03_1.sav` ning käivitate antud käsu RStudios selle projekti aknas. Kui projekti akna kogemata sulete, saate selle taas avada, kui teete topeltklõpsu projekti kaustas oleval .Rproj laiendiga failil.
+
+```{r message = FALSE}
 library(haven)
 r9 <- read_spss("data/ESS9e03_1.sav")
 ```
@@ -267,17 +270,36 @@ ee9 <- ee9 %>%
 freq(ee9$health2)
 ```
 
+Alternatiivina on võimalik tunnuse jaotuse saamiseks kasutada `dplyr`i võimalusi. Siin läheb vaja küll rohkem kui ühte funktsiooni ja trükkimist on natuke rohkem, aga eelis on see, et dplyr'i võimalusi kasutame ka muu andmetöötluse jaoks ja vahel võib olla lihtsam meeles pidada ühe paketi loogikat kui hakata otsima ja meelde tuletama muude pakettide võimalusi.
+
+```{r}
+ee9 %>% 
+  group_by(health2) %>% # grupeerime andmestiku tunnuse health2 väärtuste järgi
+  summarise(ind_arv = n()) %>% # arvutame indiviidide arvu igas grupis
+  mutate(protsent = ind_arv / sum(ind_arv) * 100)
+```
+
+
 Saame tunnuse jaotuse. Küsitlusandmete puhul, mis taotlevad esinduslikkust sihtpopulatsiooni suhtes (antud juhul on sihtpopulatsioon Eesti vanuses 15+ elanikkond), on samas oluline nüanss, et parema esinduslikkuse tagamiseks andmeid enamasti kaalutakse. Kaalumisega antakse vastajate seas suurem kaal neile gruppidele, mis võrreldes sihtpopulatsiooniga on andmetes alaesindatud ning väiksem kaal neile gruppidele, mis on üleesindatud. Siinkohal ei lasku me kaalumise nüanssidesse, olgu vaid öeldud, et ESS-i andmestikes on kolm või neli erinevat kaalu tunnust, mille eesmärk on laias laastus sama (andmete esinduslikkuse parandamine), kuid detailides erinev (milliseid asjaolusid kaalumisel arvesse võetakse). Kui ESS-i andmetest analüüsitakse ühe riigi andmeid või mitme riigi andmeid võrdlevalt, on sobiv kasutada järelkihistuskaalu tunnust `pspwght` *(post-stratification weight)*. Funktsiooni `freq` puhul saab seda teha, defineerides argumendi `weights` väärtuse.
 
 ```{r}
 freq(ee9$health2, weights = ee9$pspwght)
 ```
 
+Siin on ka `dplyr`i alternatiiv, kus ridade kokku lugemise asemel summeeritakse igas grupis kaalutunnuse väärtused ja saadakse sedasi kaalutud indiviidide arvud.
+
+```{r}
+ee9 %>% 
+  group_by(health2) %>% # grupeerime andmestiku tunnuse health2 väärtuste järgi
+  summarise(ind_arv = sum(pspwght)) %>%  # summeerime igas grupis kaalutunnuse väärtused 
+  mutate(protsent = ind_arv / sum(ind_arv) * 100)
+```
+
 Kaalumisel saavad alaesindatud gruppidesse kuuluvad indiviidid ühest suurema kaalu, üleesindatud gruppidesse kuuluvad indiviidid ühest väiksema kaalu. Näiteks kui mingi grupi osakaal on sihtpopulatsioonis 30%, aga küsitlusandmetes 25%, on selle grupi indiviidide puhul järelkihistuskaalu tunnuse väärtuseks `0.3 / 0.25 = 1.2` ehk üks taoline indiviid esindab analüüsis 1,2 indiviidi arvamusi. Kuna kaalutunnuse `pspwght` väärtusteks on murdarvud, on ka sagedusjaotuse tabelis veerus `Freq` vastajate arvudeks murdarvud, mis loogiliselt mõeldes tundub imelik (hea tervisehinnanguga oleks justkui 817 ja pool vastajat), tehniliselt on see siiski põhjendatud; sisuliseks tõlgenduseks võib muidugi need arvud täisarvuni ümardada. Nagu näha, on võrreldes kaalumata jaotusega tõusnud vastajate osakaalud, kes on hinnanud oma tervise väga heaks või heaks ja langenud sellest kehvema tervisehinnanguga vastajate osakaalud. Ilmselt tuleneb see sellest, et kaalumata andmestikus on vastajate hulgas mõnevõrra üleesindatud vanemad inimesed, kes hindavad oma tervist reeglina kehvemaks. 
 
 Vaatame tabelit ka natuke lähemalt. Veerus `Freq` on vastajate arvud ehk vastuste absoluutne sagedusjaotus, veerus `% Valid` on vastajate protsentuaalne jaotus ehk suhteline sagedusjaotus ilma puuduvate väärtusteta ehk ilma andmelünkadeta. Andmelüngad tekivad küsitlusuuringus enamasti kas sellest, et vastaja pole osanud küsimusele vastata või on sellest keeldunud või seetõttu, et konkreetset küsimust pole vastajalt küsitudki (nt töötusperioodi pikkuse kohta poleks mõtet küsida neilt, kes pole kunagi töötud olnud). Antud juhul andmelünki polegi, mistõttu veerud `% Valid` ja `% Total` on sisuliselt identsed. Samal põhjusel on antud juhul identsed ka veerud `% Valid Cum.` ja `% Total Cum.`, kus esitatakse tunnuse kumulatiivne jaotus (täpsemalt kumulatiivne suhteline jaotus) - see tähendab, et vaadeldava kategooria sagedusele on lisatud eelnevate kategooriate sagedused. Kumulatiivse sagedusjaotuse põhjal saab öelda, et väga hea ja hea tervisehinnanguga vastajaid on ümardatult 54% ning et vähemalt rahuldavaks on oma tervise hinnanud 90% vastajatest. Kumulatiivne sagedusjaotus ongi tõlgenduslikult kõige kasulikum just järjestustunnuste puhul.
 
-## Praktikumieelne ülesanne 2.1
+## Harjutus 1
 
 Läheme tervisehinnangute juurest selle juurde, kas valitsus peaks Eesti inimeste arvates rakendama abinõusid sissetulekuerinevuste vähendamiseks. Andmed selle väitega nõustumise kohta on tunnuses `gincdif`. Leidke, millised on tunnuse skaalapunktide kirjeldused; kodeerige tunnus ümber nii, et sagedusjaotuse tabel oleks informatiivne (kategooriate nimed numbriliste koodide asemel); koostage tunnuse sagedusjaotus (andmeid kaaludes) ja tõlgendage seda. Kas Eesti inimesed kalduvad väitega nõustuma või mitte nõustuma? Kas vastamisel kasutatakse pigem äärmisi vastusevariante (täielikku nõustumist ja mittenõustumist) või rohkem lihtsalt nõustumist/mittenõustumist? Kui suur on nende osa, kes selget seisukohta ei võta?
 
@@ -294,7 +316,14 @@ ee9 <- ee9 %>%
                            "3" = "Neither agree nor disagree", 
                            "4" = "Disagree",
                            "5" = "Disagree strongly"))
+
 freq(ee9$gincdif2, weights = ee9$pspwght)
+
+# dplyr'iga:
+
+ee9 %>% 
+  group_by(gincdif2) %>%
+  summarise(ind_arv = sum(pspwght))
 ```
 </details> 
 
@@ -309,11 +338,15 @@ ee9 <- ee9 %>%
                            "3" = "Neither agree nor disagree", 
                            "4" = "Disagree",
                            "5" = "Disagree strongly"))
+
 freq(ee9$gincdif2, weights = ee9$pspwght)
+
+ee9 %>% 
+  group_by(gincdif2) %>%
+  summarise(ind_arv = sum(pspwght))
 ```
 </details> 
 <br>
-Esitage Moodle's skriptifailis lahenduse kood koos kommentaaridega (mida mingi käsk teeb) ja sagedusjaotuse tabeli tõlgendustega.
 
 ## Risttabel ehk tunnuste ühisjaotus
 
@@ -336,6 +369,8 @@ Risttabeli saame koostada funktsiooniga `ctable` paketist `summarytools`. Selle 
 ```{r}
 ctable(ee9$gincdif2, ee9$gndr2, weights = ee9$pspwght)
 ```
+
+`dplyr`i alternatiiv on olemas siingi, aga see nõuab juba natuke rohkem andmeväänamist, tegeleme sellega hiljem.
 
 Saadud risttabelist võib välja lugeda, et väitega täiesti nõus olevate vastajate seas on naisi rohkem, ka on naisi mõnevõrra rohkem nõus olevate vastajate hulgas; täielikult mittenõustujate seas on seevastu rohkem mehi. Võib tunduda, et naised kalduvad seega meestest enam arvama, et valitsus peaks sissetulekuerinevusi vähendama. See järeldus oleks siiski ennatlik. Nagu näha tabeli viimaselt realt (nägime seda ka juba eelnevast soo ühemõõtmelise jaotuse tabelist), on naisi vastajate seas niikuinii natuke rohkem, seega on näiteks nõustujate seas meeste-naiste jaotus praktiliselt sama, mis kogu valimis üldiselt. Meeste ülekaal täielikult mittenõustujate seas ei oma samuti üldises plaanis eriti suurt tähtsust, sest vastajate arv, kes on valinud selle variandi, on väga väike (kaalutult 38 indiviidi). 
 
@@ -363,9 +398,9 @@ Millised protsentjaotuse lahtrid moodustavad siin kokku 100%? Kuidas sellisel ju
 </details> 
 <br>
 
-## Praktikumieelne ülesanne 2.2
+## Harjutus 2
 
-Eelnevalt uurisime, kas sugu ja nõustumine väitega, et valitsus peaks rakendama abinõusid sissetulekuerinevuste vähendamiseks on omavahel seotud. Püüdke nüüd leida vastus küsimusele, kas tervisehinnang on seotud nimetatud väitega nõustumisega. Eelkõige võiks siin uurida, kas väitega nõustumine on samasugune erineva tervisehinnanguga vastajate puhul. Tervisehinnangu tunnuses on väga halva tervisega indiviide vähe, seega võib kategooriad "Väga halb" ja "Halb" kokku liita üheks kategooriaks. Sarnaselt ülesandele 2.1 esitage R-i skript koos kommentaaride, tõlgenduste ja järeldustega. Allpool on ka spikker ülesande lahendamiseks.
+Eelnevalt uurisime, kas sugu ja nõustumine väitega, et valitsus peaks rakendama abinõusid sissetulekuerinevuste vähendamiseks on omavahel seotud. Püüdke nüüd leida vastus küsimusele, kas tervisehinnang on seotud nimetatud väitega nõustumisega. Eelkõige võiks siin uurida, kas väitega nõustumine on samasugune erineva tervisehinnanguga vastajate puhul. Tervisehinnangu tunnuses on väga halva tervisega indiviide vähe, seega võib kategooriad "Väga halb" ja "Halb" kokku liita üheks kategooriaks.
 
 <details>
   <summary>Väljundi nägemiseks klikkige siia</summary>
